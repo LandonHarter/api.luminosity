@@ -2,15 +2,20 @@ import { BlobServiceClient } from "@azure/storage-blob";
 import { exec } from "child_process";
 import { promises as fs } from "fs";
 import { Hono } from "hono";
+import { env } from "hono/adapter";
 
 const app = new Hono();
 
-const blobServiceClient = BlobServiceClient.fromConnectionString(
-	process.env.STORAGE_CONNECTION_STRING as string
-);
-const renderedContainer = blobServiceClient.getContainerClient("rendered");
+app.post("/video", async (c) => {
+	const { STORAGE_CONNECTION_STRING } = env<{
+		STORAGE_CONNECTION_STRING: string;
+	}>(c, "node");
 
-app.get("/video", async (c) => {
+	const blobServiceClient = BlobServiceClient.fromConnectionString(
+		STORAGE_CONNECTION_STRING
+	);
+	const renderedContainer = blobServiceClient.getContainerClient("rendered");
+
 	const body = await c.req.parseBody();
 
 	const code = body["code"] as string;
@@ -44,7 +49,7 @@ app.get("/video", async (c) => {
 		});
 	}
 
-	const videoPath = `${mediaDir}/videos/${fileName}/720p30/video.mp4`;
+	const videoPath = `${mediaDir}/videos/${fileName}/720p24/video.mp4`;
 	const videoClient = renderedContainer.getBlockBlobClient(`${fileName}.mp4`);
 	await videoClient.uploadFile(videoPath, {
 		blobHTTPHeaders: {
@@ -52,7 +57,9 @@ app.get("/video", async (c) => {
 		},
 	});
 
+	await fs.unlink(pyFile);
 	await fs.rm(mediaDir, { recursive: true, force: true });
+
 	return c.json({
 		video: videoClient.url,
 	});
