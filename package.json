@@ -2,7 +2,8 @@
   "name": "apiluminosity",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc"
   },
   "dependencies": {
     "@azure/storage-blob": "^12.26.0",
