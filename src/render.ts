@@ -28,6 +28,8 @@ app.post("/video", async (c) => {
 	const pyFile = `./temp/${Date.now()}.py`;
 	await fs.writeFile(pyFile, code);
 
+	console.log("rendering " + pyFile);
+
 	const videoError = await new Promise((resolve, reject) => {
 		exec(
 			`manim -qm --fps 24 ${pyFile} ${className} --disable_caching --format mp4 --flush_cache --output_file video --media_dir ./output/${fileName}/`,
