@@ -13,5 +13,5 @@ serve({
 	fetch: app.fetch,
 	port: 3001,
 }).on("listening", () => {
-	console.log("Listening on port 3001");
+	console.log("Server listening on port 3001");
 });

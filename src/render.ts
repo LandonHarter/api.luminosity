@@ -42,6 +42,7 @@ app.post("/video", async (c) => {
 
 	const mediaDir = `./output/${fileName}/`;
 	if (videoError) {
+		console.log(videoError);
 		await fs.unlink(pyFile);
 		await fs.rm(mediaDir, { recursive: true, force: true });
 		return c.json({
@@ -62,6 +63,82 @@ app.post("/video", async (c) => {
 
 	return c.json({
 		video: videoClient.url,
+	});
+});
+
+app.post("/stitch", async (c) => {
+	const { STORAGE_CONNECTION_STRING } = env<{
+		STORAGE_CONNECTION_STRING: string;
+	}>(c, "node");
+	const blobServiceClient = BlobServiceClient.fromConnectionString(
+		STORAGE_CONNECTION_STRING
+	);
+	const renderedContainer = blobServiceClient.getContainerClient("rendered");
+
+	const body = await c.req.parseBody();
+	const videoUrls = JSON.parse(body["videos"] as string) as string[];
+
+	console.log(body);
+
+	const fileName = Date.now();
+	const cwd = process.cwd();
+	const mediaDir = `${cwd}/output/${fileName}/`;
+
+	await fs.mkdir(mediaDir);
+
+	const videoPaths = [];
+	for (const videoUrl of videoUrls) {
+		if (!videoUrl) {
+			continue;
+		}
+		console.log(videoUrl);
+		const response = await fetch(videoUrl);
+		const video = await response.arrayBuffer();
+		const videoPath = `${mediaDir}/${Date.now()}.mp4`;
+		await fs.writeFile(videoPath, Buffer.from(video), {
+			encoding: "binary",
+		});
+		videoPaths.push(videoPath);
+	}
+
+	const fileListContent = videoPaths
+		.map((videoPath) => (videoPath !== null ? `file '${videoPath}'` : ""))
+		.join("\n");
+	const fileList = `${mediaDir}/fileList.txt`;
+	await fs.writeFile(fileList, fileListContent);
+
+	const stitchedVideo = `${mediaDir}/stitched.mp4`;
+	const stitchError = await new Promise((resolve, reject) => {
+		exec(
+			`ffmpeg -f concat -safe 0 -i ${fileList} -c copy ${stitchedVideo}`,
+			(error, stdout, stderr) => {
+				if (error) {
+					resolve(stderr);
+				}
+				resolve(null);
+			}
+		);
+	});
+
+	if (stitchError) {
+		await fs.rm(mediaDir, { recursive: true });
+		return c.json({
+			error: stitchError,
+		});
+	}
+
+	const stitchedClient = renderedContainer.getBlockBlobClient(
+		`${fileName}.mp4`
+	);
+	await stitchedClient.uploadFile(stitchedVideo, {
+		blobHTTPHeaders: {
+			blobContentType: "video/mp4",
+		},
+	});
+
+	await fs.rmdir(mediaDir, { recursive: true });
+	return c.json({
+		video: stitchedClient.url,
 	});
 });
 
