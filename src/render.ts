@@ -45,8 +45,13 @@ app.post("/video", async (c) => {
 	const mediaDir = `./output/${fileName}/`;
 	if (videoError) {
 		console.log(videoError);
-		await fs.unlink(pyFile);
-		await fs.rm(mediaDir, { recursive: true, force: true });
+
+		try {
+			await fs.unlink(pyFile);
+			await fs.rm(mediaDir, { recursive: true, force: true });
+		} catch (e) {
+			console.log(e);
+		}
 		return c.json({
 			error: videoError,
 		});
@@ -60,8 +65,12 @@ app.post("/video", async (c) => {
 		},
 	});
 
-	await fs.unlink(pyFile);
-	await fs.rm(mediaDir, { recursive: true, force: true });
+	try {
+		await fs.unlink(pyFile);
+		await fs.rm(mediaDir, { recursive: true, force: true });
+	} catch (e) {
+		console.log(e);
+	}
 
 	return c.json({
 		video: videoClient.url,
@@ -123,7 +132,11 @@ app.post("/stitch", async (c) => {
 	});
 
 	if (stitchError) {
-		await fs.rm(mediaDir, { recursive: true });
+		try {
+			await fs.rm(mediaDir, { recursive: true });
+		} catch (e) {
+			console.log(e);
+		}
 		return c.json({
 			error: stitchError,
 		});
@@ -138,7 +151,12 @@ app.post("/stitch", async (c) => {
 		},
 	});
 
-	await fs.rmdir(mediaDir, { recursive: true });
+	try {
+		await fs.rmdir(mediaDir, { recursive: true });
+	} catch (e) {
+		console.log(e);
+	}
+
 	return c.json({
 		video: stitchedClient.url,
 	});
